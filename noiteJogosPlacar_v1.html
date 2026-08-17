@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noite de Jogos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            padding: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            background: #f7fafc;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        input, button {
+            border: 1px solid #e2e8f0;
+            border-radius: 40px;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.15s;
+        }
+
+        input:focus {
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(49,130,206,0.2);
+        }
+
+        button {
+            background: #3182ce;
+            color: white;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            padding: 0.6rem 1.4rem;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #2b6cb0;
+            transform: scale(0.97);
+        }
+
+        button.secondary {
+            background: #edf2f7;
+            color: #2d3748;
+        }
+
+        button.secondary:hover {
+            background: #e2e8f0;
+        }
+
+        button.danger {
+            background: #e53e3e;
+        }
+
+        button.danger:hover {
+            background: #c53030;
+        }
+
+        button.success {
+            background: #38a169;
+        }
+
+        button.success:hover {
+            background: #2f855a;
+        }
+
+        button.small {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .player-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+            margin-top: 0.5rem;
+        }
+
+        .player-item {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.6rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 60px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .player-name {
+            font-weight: 500;
+            min-width: 100px;
+            color: #1a202c;
+        }
+
+        .player-score {
+            font-weight: 600;
+            color: #2b6cb0;
+            min-width: 50px;
+        }
+
+        .player-input {
+            flex: 1;
+            min-width: 100px;
+            border-radius: 40px;
+            padding: 0.4rem 1rem;
+        }
+
+        .ranking-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .ranking-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ranking-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .ranking-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #edf2f7;
+            align-items: center;
+        }
+
+        .ranking-list li:last-child {
+            border-bottom: none;
+        }
+
+        .ranking-list .history-item {
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .ranking-list .history-date {
+            color: #718096;
+            font-size: 0.8rem;
+        }
+
+        .chart-container {
+            margin: 1rem 0;
+            height: 200px;
+        }
+
+        .empty-message {
+            color: #718096;
+            text-align: center;
+            padding: 1rem 0;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            background: #ebf8ff;
+            color: #2b6cb0;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .game-name-display {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+            padding: 0.3rem 0;
+        }
+
+        .history-stats {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            border: 1px solid #e2e8f0;
+        }
+
+        .remove-player-btn {
+            background: #fc8181;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .remove-player-btn:hover {
+            background: #e53e3e;
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 500px) {
+            .player-item {
+                flex-direction: column;
+                align-items: stretch;
+                border-radius: 16px;
+                padding: 1rem;
+            }
+            .player-name, .player-score {
+                min-width: auto;
+            }
+            .flex-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .remove-player-btn {
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <h1>🏆 Placar de Jogos</h1>
+    <div class="subtitle">Gerencie suas partidas e acompanhe o histórico</div>
+
+    <!-- Nome do jogo -->
+    <div class="card">
+        <div class="card-title">🎮 Nome do jogo</div>
+        <div class="flex-row">
+            <input type="text" id="gameNameInput" placeholder="Ex: Truco, Poker, Uno..." style="flex:1;" value="Minha Partida">
+            <button id="updateGameNameBtn" class="success">Atualizar nome</button>
+        </div>
+        <div style="margin-top:0.5rem;" id="gameNameDisplay" class="game-name-display">📌 Minha Partida</div>
+    </div>
+
+    <!-- Adicionar participantes -->
+    <div class="card">
+        <div class="card-title">➕ Adicionar participantes</div>
+        <div class="flex-row">
+            <input type="text" id="playerNameInput" placeholder="Nome do jogador" style="flex:1;">
+            <button id="addPlayerBtn">Adicionar</button>
+            <button id="clearAllBtn" class="danger">🗑️ Limpar tudo</button>
+        </div>
+        <div style="margin-top:0.5rem; font-size:0.9rem; color:#4a5568;">
+            <span id="playerCount">0</span> participantes
+        </div>
+    </div>
+
+    <!-- Placar e pontuação -->
+    <div class="card">
+        <div class="flex-between">
+            <div class="card-title">📊 Placar atual</div>
+            <button id="endMatchBtn" class="danger" style="padding:0.4rem 1.2rem;">🏁 Encerrar partida</button>
+        </div>
+        <div id="playerList" class="player-grid">
+            <div class="empty-message">Nenhum participante ainda. Adicione alguns!</div>
+        </div>
+    </div>
+
+    <!-- Ranking e Gráfico -->
+    <div class="card">
+        <div class="card-title">🏅 Ranking e Histórico</div>
+        
+        <div class="history-stats" id="historyStats">
+            <span class="stat-item">📊 Total de partidas: <strong id="totalMatches">0</strong></span>
+            <span class="stat-item">👥 Jogadores únicos: <strong id="uniquePlayers">0</strong></span>
+        </div>
+
+        <div class="ranking-section">
+            <div>
+                <div style="font-weight:500; margin-bottom:0.5rem; color:#2d3748;">Classificação</div>
+                <ul id="rankingList" class="ranking-list">
+                    <li class="empty-message">Nenhuma partida encerrada ainda.</li>
+                </ul>
+            </div>
+            <div>
+                <div style="font-weight:500; margin-bottom:0.5rem; color:#2d3748;">Histórico de partidas</div>
+                <ul id="historyList" class="ranking-list">
+                    <li class="empty-message">Nenhuma partida registrada.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="matchChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ----- Estado - INICIANDO VAZIO -----
+        let players = [];
+        let matchHistory = [];
+        let nextId = 1;
+        let chartInstance = null;
+        let gameName = 'Minha Partida';
+
+        // ----- DOM refs -----
+        const playerNameInput = document.getElementById('playerNameInput');
+        const addPlayerBtn = document.getElementById('addPlayerBtn');
+        const playerListEl = document.getElementById('playerList');
+        const playerCountEl = document.getElementById('playerCount');
+        const rankingListEl = document.getElementById('rankingList');
+        const historyListEl = document.getElementById('historyList');
+        const endMatchBtn = document.getElementById('endMatchBtn');
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        const gameNameInput = document.getElementById('gameNameInput');
+        const updateGameNameBtn = document.getElementById('updateGameNameBtn');
+        const gameNameDisplay = document.getElementById('gameNameDisplay');
+        const totalMatchesEl = document.getElementById('totalMatches');
+        const uniquePlayersEl = document.getElementById('uniquePlayers');
+        const ctx = document.getElementById('matchChart').getContext('2d');
+
+        // ----- Funções auxiliares -----
+        function updatePlayerCount() {
+            playerCountEl.textContent = players.length;
+        }
+
+        function updateGameNameDisplay() {
+            gameNameDisplay.textContent = `📌 ${gameName}`;
+            gameNameInput.value = gameName;
+        }
+
+        function updateStats() {
+            totalMatchesEl.textContent = matchHistory.length;
+            const unique = new Set();
+            matchHistory.forEach(m => {
+                const winners = m.winner.split(' e ');
+                winners.forEach(w => unique.add(w.trim()));
+            });
+            uniquePlayersEl.textContent = unique.size;
+        }
+
+        // Remover jogador
+        function removePlayer(id) {
+            if (!confirm('Tem certeza que deseja remover este jogador?')) {
+                return;
+            }
+            players = players.filter(p => p.id !== id);
+            renderPlayers();
+            updatePlayerCount();
+            updateRankingAndChart();
+        }
+
+        // Renderiza a lista de jogadores com inputs de pontuação
+        function renderPlayers() {
+            if (players.length === 0) {
+                playerListEl.innerHTML = `<div class="empty-message">Nenhum participante ainda. Adicione alguns!</div>`;
+                return;
+            }
+
+            let html = '';
+            players.forEach(p => {
+                html += `
+                    <div class="player-item" data-id="${p.id}">
+                        <span class="player-name">${escapeHtml(p.name)}</span>
+                        <span class="player-score" id="score-${p.id}">${p.score}</span>
+                        <input type="number" class="player-input" id="input-${p.id}" placeholder="+ pontos" min="0" value="">
+                        <button class="secondary add-score-btn" data-id="${p.id}">Adicionar</button>
+                        <button class="remove-player-btn" data-id="${p.id}" title="Remover jogador">✕</button>
+                    </div>
+                `;
+            });
+            playerListEl.innerHTML = html;
+
+            // Adicionar eventos para os botões de adicionar pontuação
+            document.querySelectorAll('.add-score-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const id = parseInt(this.dataset.id);
+                    const input = document.getElementById(`input-${id}`);
+                    const val = parseInt(input.value);
+                    if (!isNaN(val)) {
+                        addScoreToPlayer(id, val);
+                        input.value = '';
+                    } else {
+                        alert('Insira um número.');
+                    }
+                });
+            });
+
+            // Adicionar eventos para os botões de remover
+            document.querySelectorAll('.remove-player-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const id = parseInt(this.dataset.id);
+                    removePlayer(id);
+                });
+            });
+
+            // Permitir Enter no campo de input
+            document.querySelectorAll('.player-input').forEach(inp => {
+                inp.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const id = parseInt(this.id.split('-')[1]);
+                        const val = parseInt(this.value);
+                        if (!isNaN(val)) {
+                            addScoreToPlayer(id, val);
+                            this.value = '';
+                        }
+                    }
+                });
+            });
+        }
+
+        // Adiciona pontuação a um jogador e atualiza a UI
+        function addScoreToPlayer(id, points) {
+            const player = players.find(p => p.id === id);
+            if (player) {
+                player.score += points;
+                const scoreSpan = document.getElementById(`score-${id}`);
+                if (scoreSpan) scoreSpan.textContent = player.score;
+            }
+        }
+
+        // Escapar HTML para segurança
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Atualiza o ranking, histórico e gráfico
+        function updateRankingAndChart() {
+            // Ranking baseado no histórico de partidas
+            const winnerCount = {};
+            matchHistory.forEach(m => {
+                const winners = m.winner.split(' e ');
+                winners.forEach(w => {
+                    winnerCount[w.trim()] = (winnerCount[w.trim()] || 0) + 1;
+                });
+            });
+
+            const sorted = Object.entries(winnerCount).sort((a, b) => b[1] - a[1]);
+
+            // Atualizar ranking
+            if (sorted.length === 0) {
+                rankingListEl.innerHTML = `<li class="empty-message">Nenhuma partida encerrada ainda.</li>`;
+            } else {
+                let html = '';
+                sorted.forEach(([name, wins]) => {
+                    html += `<li><span>${escapeHtml(name)}</span> <span class="badge">${wins} vitória${wins > 1 ? 's' : ''}</span></li>`;
+                });
+                rankingListEl.innerHTML = html;
+            }
+
+            // Atualizar histórico
+            if (matchHistory.length === 0) {
+                historyListEl.innerHTML = `<li class="empty-message">Nenhuma partida registrada.</li>`;
+            } else {
+                let html = '';
+                // Mostrar últimas 20 partidas (mais recentes primeiro)
+                const recent = [...matchHistory].reverse().slice(0, 20);
+                recent.forEach(m => {
+                    html += `
+                        <li class="history-item">
+                            <span>🏆 ${escapeHtml(m.winner)}</span>
+                            <span class="history-date">${escapeHtml(m.gameName)} • ${m.date} • ${m.players} jog.</span>
+                        </li>
+                    `;
+                });
+                historyListEl.innerHTML = html;
+            }
+
+            // Atualizar estatísticas
+            updateStats();
+
+            // Atualizar gráfico
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+
+            const labels = sorted.map(([name]) => name);
+            const data = sorted.map(([, wins]) => wins);
+
+            if (labels.length > 0) {
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Vitórias',
+                            data: data,
+                            backgroundColor: '#3182ce',
+                            borderRadius: 8,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            } else {
+                // Gráfico vazio
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Nenhuma partida'],
+                        datasets: [{
+                            label: 'Vitórias',
+                            data: [0],
+                            backgroundColor: '#cbd5e0',
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    }
+                });
+            }
+        }
+
+        // Encerrar a partida: identificar o vencedor (maior pontuação)
+        function endMatch() {
+            console.log('Botão encerrar partida clicado!');
+            console.log('Players:', players);
+            
+            if (players.length === 0) {
+                alert('Adicione pelo menos um participante antes de encerrar a partida.');
+                return;
+            }
+
+            // Verificar se todos têm pontuação 0
+            const allZero = players.every(p => p.score === 0);
+            if (allZero) {
+                if (!confirm('Todos os jogadores têm pontuação 0. Deseja encerrar mesmo assim?')) {
+                    return;
+                }
+            }
+
+            // Encontrar maior pontuação
+            let maxScore = -Infinity;
+            let winners = [];
+            players.forEach(p => {
+                if (p.score > maxScore) {
+                    maxScore = p.score;
+                    winners = [p.name];
+                } else if (p.score === maxScore) {
+                    winners.push(p.name);
+                }
+            });
+
+            if (winners.length === 0) {
+                alert('Nenhum vencedor encontrado.');
+                return;
+            }
+
+            const winnerNames = winners.join(' e ');
+            
+            // Registrar no histórico
+            matchHistory.push({
+                winner: winnerNames,
+                date: new Date().toLocaleDateString('pt-BR'),
+                gameName: gameName,
+                players: players.length
+            });
+
+            // Resetar pontuação dos jogadores
+            players.forEach(p => p.score = 0);
+
+            // Atualizar interface
+            renderPlayers();
+            updateRankingAndChart();
+            updatePlayerCount();
+            
+            alert(`🏆 Partida encerrada! Vencedor(es): ${winnerNames}`);
+        }
+
+        // Adicionar novo jogador
+        function addPlayer() {
+            const name = playerNameInput.value.trim();
+            if (name === '') {
+                alert('Digite um nome válido.');
+                return;
+            }
+            if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                alert('Jogador já existe.');
+                return;
+            }
+
+            players.push({
+                id: nextId++,
+                name: name,
+                score: 0
+            });
+            playerNameInput.value = '';
+            renderPlayers();
+            updatePlayerCount();
+            updateRankingAndChart();
+        }
+
+        // Limpar tudo
+        function clearAll() {
+            if (!confirm('Tem certeza que deseja limpar todos os dados? Isso removerá todos os jogadores, pontuações e histórico de partidas.')) {
+                return;
+            }
+            players = [];
+            matchHistory = [];
+            nextId = 1;
+            renderPlayers();
+            updatePlayerCount();
+            updateRankingAndChart();
+        }
+
+        // Atualizar nome do jogo
+        function updateGameName() {
+            const newName = gameNameInput.value.trim();
+            if (newName === '') {
+                alert('Digite um nome para o jogo.');
+                return;
+            }
+            gameName = newName;
+            updateGameNameDisplay();
+        }
+
+        // ----- INICIALIZAÇÃO - TUDO VAZIO -----
+        function initializeEmpty() {
+            players = [];
+            matchHistory = [];
+            nextId = 1;
+            gameName = 'Minha Partida';
+            
+            renderPlayers();
+            updatePlayerCount();
+            updateRankingAndChart();
+            updateGameNameDisplay();
+        }
+
+        // ----- Eventos -----
+        addPlayerBtn.addEventListener('click', addPlayer);
+        playerNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addPlayer();
+        });
+
+        endMatchBtn.addEventListener('click', endMatch);
+        clearAllBtn.addEventListener('click', clearAll);
+        updateGameNameBtn.addEventListener('click', updateGameName);
+        gameNameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') updateGameName();
+        });
+
+        // ----- Iniciar app completamente vazio -----
+        initializeEmpty();
+    })();
+</script>
+</body>
+</html>
