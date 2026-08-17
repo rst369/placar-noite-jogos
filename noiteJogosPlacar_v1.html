@@ -277,6 +277,13 @@
             transform: scale(1.1);
         }
 
+        .storage-status {
+            font-size: 0.8rem;
+            color: #38a169;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
         @media (max-width: 500px) {
             .player-item {
                 flex-direction: column;
@@ -363,12 +370,22 @@
         <div class="chart-container">
             <canvas id="matchChart"></canvas>
         </div>
+        
+        <div class="storage-status" id="storageStatus">💾 Dados salvos automaticamente no Local Storage</div>
     </div>
 </div>
 
 <script>
     (function() {
-        // ----- Estado - INICIANDO VAZIO -----
+        // ----- Chaves do Local Storage -----
+        const STORAGE_KEYS = {
+            PLAYERS: 'placar_players',
+            HISTORY: 'placar_history',
+            NEXT_ID: 'placar_nextId',
+            GAME_NAME: 'placar_gameName'
+        };
+
+        // ----- Estado -----
         let players = [];
         let matchHistory = [];
         let nextId = 1;
@@ -389,7 +406,66 @@
         const gameNameDisplay = document.getElementById('gameNameDisplay');
         const totalMatchesEl = document.getElementById('totalMatches');
         const uniquePlayersEl = document.getElementById('uniquePlayers');
+        const storageStatusEl = document.getElementById('storageStatus');
         const ctx = document.getElementById('matchChart').getContext('2d');
+
+        // ----- Funções de persistência -----
+        function saveToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+                localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(matchHistory));
+                localStorage.setItem(STORAGE_KEYS.NEXT_ID, String(nextId));
+                localStorage.setItem(STORAGE_KEYS.GAME_NAME, gameName);
+                storageStatusEl.textContent = '💾 Dados salvos automaticamente no Local Storage';
+                storageStatusEl.style.color = '#38a169';
+            } catch (error) {
+                console.error('Erro ao salvar no Local Storage:', error);
+                storageStatusEl.textContent = '⚠️ Erro ao salvar dados';
+                storageStatusEl.style.color = '#e53e3e';
+            }
+        }
+
+        function loadFromStorage() {
+            try {
+                const playersData = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+                const historyData = localStorage.getItem(STORAGE_KEYS.HISTORY);
+                const nextIdData = localStorage.getItem(STORAGE_KEYS.NEXT_ID);
+                const gameNameData = localStorage.getItem(STORAGE_KEYS.GAME_NAME);
+
+                if (playersData) {
+                    players = JSON.parse(playersData);
+                } else {
+                    players = [];
+                }
+
+                if (historyData) {
+                    matchHistory = JSON.parse(historyData);
+                } else {
+                    matchHistory = [];
+                }
+
+                if (nextIdData) {
+                    nextId = parseInt(nextIdData) || 1;
+                } else {
+                    nextId = 1;
+                }
+
+                if (gameNameData) {
+                    gameName = gameNameData;
+                } else {
+                    gameName = 'Minha Partida';
+                }
+
+                storageStatusEl.textContent = '✅ Dados carregados do Local Storage';
+                storageStatusEl.style.color = '#38a169';
+                return true;
+            } catch (error) {
+                console.error('Erro ao carregar do Local Storage:', error);
+                storageStatusEl.textContent = '⚠️ Erro ao carregar dados';
+                storageStatusEl.style.color = '#e53e3e';
+                return false;
+            }
+        }
 
         // ----- Funções auxiliares -----
         function updatePlayerCount() {
@@ -420,6 +496,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            saveToStorage();
         }
 
         // Renderiza a lista de jogadores com inputs de pontuação
@@ -453,7 +530,7 @@
                         addScoreToPlayer(id, val);
                         input.value = '';
                     } else {
-                        alert('Insira um número.');
+                        alert('Insira um número válido.');
                     }
                 });
             });
@@ -488,6 +565,7 @@
                 player.score += points;
                 const scoreSpan = document.getElementById(`score-${id}`);
                 if (scoreSpan) scoreSpan.textContent = player.score;
+                saveToStorage();
             }
         }
 
@@ -602,9 +680,6 @@
 
         // Encerrar a partida: identificar o vencedor (maior pontuação)
         function endMatch() {
-            console.log('Botão encerrar partida clicado!');
-            console.log('Players:', players);
-            
             if (players.length === 0) {
                 alert('Adicione pelo menos um participante antes de encerrar a partida.');
                 return;
@@ -648,6 +723,9 @@
             // Resetar pontuação dos jogadores
             players.forEach(p => p.score = 0);
 
+            // Salvar no Local Storage
+            saveToStorage();
+
             // Atualizar interface
             renderPlayers();
             updateRankingAndChart();
@@ -677,6 +755,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            saveToStorage();
         }
 
         // Limpar tudo
@@ -690,6 +769,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            saveToStorage();
         }
 
         // Atualizar nome do jogo
@@ -701,19 +781,31 @@
             }
             gameName = newName;
             updateGameNameDisplay();
+            saveToStorage();
         }
 
-        // ----- INICIALIZAÇÃO - TUDO VAZIO -----
-        function initializeEmpty() {
-            players = [];
-            matchHistory = [];
-            nextId = 1;
-            gameName = 'Minha Partida';
+        // ----- INICIALIZAÇÃO -----
+        function initializeApp() {
+            // Tentar carregar dados do Local Storage
+            const hasData = loadFromStorage();
+            
+            if (!hasData || players.length === 0) {
+                // Se não houver dados, iniciar vazio
+                players = [];
+                matchHistory = [];
+                nextId = 1;
+                gameName = 'Minha Partida';
+            }
             
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
             updateGameNameDisplay();
+            
+            if (hasData && (players.length > 0 || matchHistory.length > 0)) {
+                storageStatusEl.textContent = '✅ Dados carregados com sucesso!';
+                storageStatusEl.style.color = '#38a169';
+            }
         }
 
         // ----- Eventos -----
@@ -729,8 +821,11 @@
             if (e.key === 'Enter') updateGameName();
         });
 
-        // ----- Iniciar app completamente vazio -----
-        initializeEmpty();
+        // ----- Iniciar app -----
+        initializeApp();
+
+        // Salvar automaticamente a cada 30 segundos (por segurança)
+        setInterval(saveToStorage, 30000);
     })();
 </script>
 </body>
