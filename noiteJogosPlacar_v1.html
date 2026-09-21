@@ -392,6 +392,81 @@
             text-align: center;
         }
 
+        /* NOVO: Estilos para o sorteio */
+        .draw-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+            border: 2px solid #90cdf4;
+            text-align: center;
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .draw-result.show {
+            display: block;
+        }
+
+        .draw-result .draw-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #2c5282;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.3rem;
+        }
+
+        .draw-result .draw-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #1a365d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .draw-result .draw-name .emoji {
+            font-size: 1.8rem;
+        }
+
+        .draw-btn {
+            background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%);
+            font-size: 1rem;
+            padding: 0.7rem 1.8rem;
+            box-shadow: 0 4px 12px rgba(107, 70, 193, 0.3);
+        }
+
+        .draw-btn:hover {
+            background: linear-gradient(135deg, #6b46c1 0%, #553c9a 100%);
+            box-shadow: 0 6px 16px rgba(107, 70, 193, 0.4);
+        }
+
+        .draw-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .player-item.drawn {
+            border-color: #805ad5;
+            background: #faf5ff;
+            box-shadow: 0 0 0 3px rgba(128, 90, 213, 0.25);
+            animation: pulse 0.6s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
         @media (max-width: 500px) {
             .player-item {
                 flex-direction: column;
@@ -441,6 +516,19 @@
         </div>
         <div style="margin-top:0.5rem; font-size:0.9rem; color:#4a5568;">
             <span id="playerCount">0</span> participantes
+        </div>
+    </div>
+
+    <!-- NOVO: Sortear jogador para começar -->
+    <div class="card">
+        <div class="card-title">🎲 Quem começa a partida?</div>
+        <div class="flex-row">
+            <button id="drawPlayerBtn" class="draw-btn">🎲 Sortear jogador</button>
+            <span style="font-size:0.85rem; color:#718096;">Sorteia aleatoriamente entre os participantes cadastrados</span>
+        </div>
+        <div id="drawResult" class="draw-result">
+            <div class="draw-label">🎯 Jogador sorteado para começar</div>
+            <div class="draw-name" id="drawName"></div>
         </div>
     </div>
 
@@ -505,7 +593,8 @@
             HISTORY: 'placar_history',
             NEXT_ID: 'placar_nextId',
             GAME_NAME: 'placar_gameName',
-            TITLE_INDEX: 'placar_titleIndex'
+            TITLE_INDEX: 'placar_titleIndex',
+            LAST_DRAWN: 'placar_lastDrawn'
         };
 
         // ----- Títulos alternados -----
@@ -523,6 +612,7 @@
         let chartInstance = null;
         let gameName = 'Minha Partida';
         let titleIndex = 0;
+        let lastDrawnId = null;
 
         // ----- DOM refs -----
         const pageTitleEl = document.getElementById('pageTitle');
@@ -544,6 +634,10 @@
         const leaderNameEl = document.getElementById('leaderName');
         const leaderScoreEl = document.getElementById('leaderScore');
         const ctx = document.getElementById('matchChart').getContext('2d');
+        // NOVO: refs do sorteio
+        const drawPlayerBtn = document.getElementById('drawPlayerBtn');
+        const drawResultEl = document.getElementById('drawResult');
+        const drawNameEl = document.getElementById('drawName');
 
         // ----- Funções de persistência -----
         function saveToStorage() {
@@ -553,6 +647,11 @@
                 localStorage.setItem(STORAGE_KEYS.NEXT_ID, String(nextId));
                 localStorage.setItem(STORAGE_KEYS.GAME_NAME, gameName);
                 localStorage.setItem(STORAGE_KEYS.TITLE_INDEX, String(titleIndex));
+                if (lastDrawnId !== null) {
+                    localStorage.setItem(STORAGE_KEYS.LAST_DRAWN, String(lastDrawnId));
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.LAST_DRAWN);
+                }
                 storageStatusEl.textContent = '💾 Dados salvos automaticamente no Local Storage';
                 storageStatusEl.style.color = '#38a169';
             } catch (error) {
@@ -569,12 +668,14 @@
                 const nextIdData = localStorage.getItem(STORAGE_KEYS.NEXT_ID);
                 const gameNameData = localStorage.getItem(STORAGE_KEYS.GAME_NAME);
                 const titleIndexData = localStorage.getItem(STORAGE_KEYS.TITLE_INDEX);
+                const lastDrawnData = localStorage.getItem(STORAGE_KEYS.LAST_DRAWN);
 
                 players = playersData ? JSON.parse(playersData) : [];
                 matchHistory = historyData ? JSON.parse(historyData) : [];
                 nextId = nextIdData ? parseInt(nextIdData) || 1 : 1;
                 gameName = gameNameData || 'Minha Partida';
                 titleIndex = titleIndexData ? parseInt(titleIndexData) || 0 : 0;
+                lastDrawnId = lastDrawnData ? parseInt(lastDrawnData) : null;
 
                 // Garantir que o índice está dentro dos limites
                 if (titleIndex < 0 || titleIndex >= TITLES.length) {
@@ -700,6 +801,10 @@
                 return;
             }
             players = players.filter(p => p.id !== id);
+            if (lastDrawnId === id) {
+                lastDrawnId = null;
+                drawResultEl.classList.remove('show');
+            }
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
@@ -712,6 +817,7 @@
             if (players.length === 0) {
                 playerListEl.innerHTML = `<div class="empty-message">Nenhum participante ainda. Adicione alguns!</div>`;
                 updateLeaderBanner();
+                updateDrawButtonState();
                 return;
             }
 
@@ -769,6 +875,63 @@
             // Atualizar destaques após renderizar
             updatePlayerHighlights();
             updateLeaderBanner();
+            updateDrawButtonState();
+            updateDrawnHighlight();
+        }
+
+        // NOVO: Atualiza o destaque visual do jogador sorteado
+        function updateDrawnHighlight() {
+            document.querySelectorAll('.player-item').forEach(item => {
+                item.classList.remove('drawn');
+            });
+            if (lastDrawnId !== null) {
+                const item = document.querySelector(`.player-item[data-id="${lastDrawnId}"]`);
+                if (item) item.classList.add('drawn');
+            }
+        }
+
+        // NOVO: Atualiza estado do botão de sorteio
+        function updateDrawButtonState() {
+            drawPlayerBtn.disabled = players.length === 0;
+            if (players.length === 0) {
+                drawResultEl.classList.remove('show');
+            }
+        }
+
+        // NOVO: Sorteia um jogador aleatoriamente
+        function drawRandomPlayer() {
+            if (players.length === 0) {
+                alert('Adicione pelo menos um participante antes de sortear.');
+                return;
+            }
+
+            // Animação de "sorteando..." 
+            drawPlayerBtn.disabled = true;
+            drawPlayerBtn.textContent = '🎲 Sorteando...';
+            drawResultEl.classList.remove('show');
+
+            let count = 0;
+            const totalFlashes = 12;
+            const flashInterval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * players.length);
+                const tempPlayer = players[randomIndex];
+                drawNameEl.innerHTML = `<span class="emoji">🎲</span> ${escapeHtml(tempPlayer.name)}`;
+                drawResultEl.classList.add('show');
+                count++;
+                if (count >= totalFlashes) {
+                    clearInterval(flashInterval);
+                    // Resultado final
+                    const finalIndex = Math.floor(Math.random() * players.length);
+                    const chosen = players[finalIndex];
+                    lastDrawnId = chosen.id;
+                    drawNameEl.innerHTML = `<span class="emoji">🎯</span> ${escapeHtml(chosen.name)}`;
+                    drawResultEl.classList.add('show');
+                    updateDrawnHighlight();
+                    drawPlayerBtn.disabled = false;
+                    drawPlayerBtn.textContent = '🎲 Sortear jogador';
+                    saveToStorage();
+                }
+            }, 80);
         }
 
         // Adiciona pontuação a um jogador e atualiza a UI
@@ -934,6 +1097,10 @@
 
             players.forEach(p => p.score = 0);
 
+            // Limpa o sorteio ao encerrar a partida
+            lastDrawnId = null;
+            drawResultEl.classList.remove('show');
+
             saveToStorage();
 
             renderPlayers();
@@ -965,6 +1132,7 @@
             updatePlayerCount();
             updateRankingAndChart();
             updateLeaderBanner();
+            updateDrawButtonState();
             saveToStorage();
         }
 
@@ -976,10 +1144,13 @@
             players = [];
             matchHistory = [];
             nextId = 1;
+            lastDrawnId = null;
+            drawResultEl.classList.remove('show');
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
             updateLeaderBanner();
+            updateDrawButtonState();
             saveToStorage();
         }
 
@@ -1005,6 +1176,7 @@
                 nextId = 1;
                 gameName = 'Minha Partida';
                 titleIndex = 0;
+                lastDrawnId = null;
             }
             
             // Atualizar título da página
@@ -1015,6 +1187,20 @@
             updateRankingAndChart();
             updateGameNameDisplay();
             updateLeaderBanner();
+            updateDrawButtonState();
+            
+            // Restaura o resultado do último sorteio se o jogador ainda existir
+            if (lastDrawnId !== null) {
+                const drawnPlayer = players.find(p => p.id === lastDrawnId);
+                if (drawnPlayer) {
+                    drawNameEl.innerHTML = `<span class="emoji">🎯</span> ${escapeHtml(drawnPlayer.name)}`;
+                    drawResultEl.classList.add('show');
+                    updateDrawnHighlight();
+                } else {
+                    lastDrawnId = null;
+                    drawResultEl.classList.remove('show');
+                }
+            }
             
             if (hasData && (players.length > 0 || matchHistory.length > 0)) {
                 storageStatusEl.textContent = '✅ Dados carregados com sucesso!';
@@ -1036,6 +1222,9 @@
         gameNameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') updateGameName();
         });
+
+        // NOVO: Evento do sorteio
+        drawPlayerBtn.addEventListener('click', drawRandomPlayer);
 
         // ----- Iniciar app -----
         initializeApp();
