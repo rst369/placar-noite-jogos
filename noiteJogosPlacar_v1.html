@@ -9,6 +9,7 @@
     
     <!-- Fallback para navegadores mais antigos -->
     <link rel="icon" type="image/png" sizes="32x32" href="https://cdn-icons-png.flaticon.com/512/3524/3524046.png">
+    <title>Placar de Jogos</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -41,6 +42,20 @@
             margin-bottom: 0.5rem;
             text-align: center;
             font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s, transform 0.2s;
+            display: inline-block;
+            width: 100%;
+        }
+
+        h1:hover {
+            color: #3182ce;
+            transform: scale(1.02);
+        }
+
+        h1:active {
+            transform: scale(0.98);
         }
 
         .subtitle {
@@ -132,6 +147,83 @@
             font-size: 0.8rem;
         }
 
+        /* Área de quem está vencendo */
+        .leader-banner {
+            background: linear-gradient(135deg, #f6e05e 0%, #ecc94b 100%);
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            box-shadow: 0 4px 12px rgba(236, 201, 75, 0.3);
+            border: 2px solid #ecc94b;
+            transition: all 0.3s ease;
+        }
+
+        .leader-banner.empty {
+            background: #edf2f7;
+            box-shadow: none;
+            border: 2px dashed #cbd5e0;
+        }
+
+        .leader-banner.tie {
+            background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+            box-shadow: 0 4px 12px rgba(144, 205, 244, 0.3);
+            border: 2px solid #90cdf4;
+        }
+
+        .leader-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #744210;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .leader-banner.empty .leader-label {
+            color: #718096;
+        }
+
+        .leader-banner.tie .leader-label {
+            color: #2c5282;
+        }
+
+        .leader-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #744210;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .leader-banner.empty .leader-name {
+            color: #a0aec0;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .leader-banner.tie .leader-name {
+            color: #2c5282;
+        }
+
+        .leader-score {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #744210;
+        }
+
+        .leader-banner.tie .leader-score {
+            color: #2c5282;
+        }
+
+        .leader-banner.empty .leader-score {
+            display: none;
+        }
+
         .player-grid {
             display: flex;
             flex-direction: column;
@@ -148,6 +240,13 @@
             padding: 0.5rem 1rem;
             border-radius: 60px;
             border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .player-item.leading {
+            border-color: #ecc94b;
+            background: #fffff0;
+            box-shadow: 0 0 0 2px rgba(236, 201, 75, 0.2);
         }
 
         .player-name {
@@ -160,6 +259,10 @@
             font-weight: 600;
             color: #2b6cb0;
             min-width: 50px;
+        }
+
+        .player-item.leading .player-score {
+            color: #b7791f;
         }
 
         .player-input {
@@ -306,12 +409,16 @@
             .remove-player-btn {
                 align-self: flex-end;
             }
+            .leader-banner {
+                flex-direction: column;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
 <div class="container" id="app">
-    <h1>🏆 Noite de Jogos</h1>
+    <h1 id="pageTitle" title="Clique para alternar">🌙 Noite de Jogos</h1>
     <div class="subtitle">Gerencie suas partidas e acompanhe o histórico</div>
 
     <!-- Nome do jogo -->
@@ -343,6 +450,16 @@
             <div class="card-title">📊 Placar atual</div>
             <button id="endMatchBtn" class="danger" style="padding:0.4rem 1.2rem;">🏁 Encerrar partida</button>
         </div>
+
+        <!-- Área de quem está vencendo -->
+        <div id="leaderBanner" class="leader-banner empty">
+            <div>
+                <div class="leader-label">🏆 Vencendo agora</div>
+                <div class="leader-name" id="leaderName">Aguardando pontuações...</div>
+            </div>
+            <div class="leader-score" id="leaderScore"></div>
+        </div>
+
         <div id="playerList" class="player-grid">
             <div class="empty-message">Nenhum participante ainda. Adicione alguns!</div>
         </div>
@@ -387,8 +504,17 @@
             PLAYERS: 'placar_players',
             HISTORY: 'placar_history',
             NEXT_ID: 'placar_nextId',
-            GAME_NAME: 'placar_gameName'
+            GAME_NAME: 'placar_gameName',
+            TITLE_INDEX: 'placar_titleIndex'
         };
+
+        // ----- Títulos alternados -----
+        const TITLES = [
+            '🌙 Noite de Jogos',
+            '☀️ Dia de Jogos',
+            '🌤️ Tarde de Jogos',
+            '🌌 Madrugada de Jogos'
+        ];
 
         // ----- Estado -----
         let players = [];
@@ -396,8 +522,10 @@
         let nextId = 1;
         let chartInstance = null;
         let gameName = 'Minha Partida';
+        let titleIndex = 0;
 
         // ----- DOM refs -----
+        const pageTitleEl = document.getElementById('pageTitle');
         const playerNameInput = document.getElementById('playerNameInput');
         const addPlayerBtn = document.getElementById('addPlayerBtn');
         const playerListEl = document.getElementById('playerList');
@@ -412,6 +540,9 @@
         const totalMatchesEl = document.getElementById('totalMatches');
         const uniquePlayersEl = document.getElementById('uniquePlayers');
         const storageStatusEl = document.getElementById('storageStatus');
+        const leaderBannerEl = document.getElementById('leaderBanner');
+        const leaderNameEl = document.getElementById('leaderName');
+        const leaderScoreEl = document.getElementById('leaderScore');
         const ctx = document.getElementById('matchChart').getContext('2d');
 
         // ----- Funções de persistência -----
@@ -421,6 +552,7 @@
                 localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(matchHistory));
                 localStorage.setItem(STORAGE_KEYS.NEXT_ID, String(nextId));
                 localStorage.setItem(STORAGE_KEYS.GAME_NAME, gameName);
+                localStorage.setItem(STORAGE_KEYS.TITLE_INDEX, String(titleIndex));
                 storageStatusEl.textContent = '💾 Dados salvos automaticamente no Local Storage';
                 storageStatusEl.style.color = '#38a169';
             } catch (error) {
@@ -436,29 +568,17 @@
                 const historyData = localStorage.getItem(STORAGE_KEYS.HISTORY);
                 const nextIdData = localStorage.getItem(STORAGE_KEYS.NEXT_ID);
                 const gameNameData = localStorage.getItem(STORAGE_KEYS.GAME_NAME);
+                const titleIndexData = localStorage.getItem(STORAGE_KEYS.TITLE_INDEX);
 
-                if (playersData) {
-                    players = JSON.parse(playersData);
-                } else {
-                    players = [];
-                }
+                players = playersData ? JSON.parse(playersData) : [];
+                matchHistory = historyData ? JSON.parse(historyData) : [];
+                nextId = nextIdData ? parseInt(nextIdData) || 1 : 1;
+                gameName = gameNameData || 'Minha Partida';
+                titleIndex = titleIndexData ? parseInt(titleIndexData) || 0 : 0;
 
-                if (historyData) {
-                    matchHistory = JSON.parse(historyData);
-                } else {
-                    matchHistory = [];
-                }
-
-                if (nextIdData) {
-                    nextId = parseInt(nextIdData) || 1;
-                } else {
-                    nextId = 1;
-                }
-
-                if (gameNameData) {
-                    gameName = gameNameData;
-                } else {
-                    gameName = 'Minha Partida';
+                // Garantir que o índice está dentro dos limites
+                if (titleIndex < 0 || titleIndex >= TITLES.length) {
+                    titleIndex = 0;
                 }
 
                 storageStatusEl.textContent = '✅ Dados carregados do Local Storage';
@@ -492,6 +612,88 @@
             uniquePlayersEl.textContent = unique.size;
         }
 
+        // Atualizar título da página
+        function updatePageTitle() {
+            pageTitleEl.textContent = TITLES[titleIndex];
+            document.title = TITLES[titleIndex].replace(/[^\w\sÀ-ÿ]/g, '').trim() + ' - Placar';
+        }
+
+        // Rotacionar título
+        function rotateTitle() {
+            titleIndex = (titleIndex + 1) % TITLES.length;
+            updatePageTitle();
+            saveToStorage();
+        }
+
+        // Atualizar banner de quem está vencendo
+        function updateLeaderBanner() {
+            if (players.length === 0) {
+                leaderBannerEl.className = 'leader-banner empty';
+                leaderNameEl.textContent = 'Aguardando pontuações...';
+                leaderScoreEl.textContent = '';
+                return;
+            }
+
+            // Verificar se todos têm pontuação 0
+            const allZero = players.every(p => p.score === 0);
+            if (allZero) {
+                leaderBannerEl.className = 'leader-banner empty';
+                leaderNameEl.textContent = 'Aguardando pontuações...';
+                leaderScoreEl.textContent = '';
+                return;
+            }
+
+            // Encontrar maior pontuação
+            let maxScore = -Infinity;
+            let leaders = [];
+            players.forEach(p => {
+                if (p.score > maxScore) {
+                    maxScore = p.score;
+                    leaders = [p.name];
+                } else if (p.score === maxScore) {
+                    leaders.push(p.name);
+                }
+            });
+
+            if (leaders.length === 0) {
+                leaderBannerEl.className = 'leader-banner empty';
+                leaderNameEl.textContent = 'Aguardando pontuações...';
+                leaderScoreEl.textContent = '';
+                return;
+            }
+
+            if (leaders.length > 1) {
+                // Empate
+                leaderBannerEl.className = 'leader-banner tie';
+                leaderNameEl.textContent = `🤝 Empate: ${leaders.join(' e ')}`;
+                leaderScoreEl.textContent = `${maxScore} pts`;
+            } else {
+                // Vencedor único
+                leaderBannerEl.className = 'leader-banner';
+                leaderNameEl.textContent = `👑 ${leaders[0]}`;
+                leaderScoreEl.textContent = `${maxScore} pts`;
+            }
+        }
+
+        // Destacar jogadores líderes na lista
+        function updatePlayerHighlights() {
+            if (players.length === 0) return;
+            
+            const maxScore = Math.max(...players.map(p => p.score));
+            const allZero = players.every(p => p.score === 0);
+
+            players.forEach(p => {
+                const item = document.querySelector(`.player-item[data-id="${p.id}"]`);
+                if (item) {
+                    if (!allZero && p.score === maxScore) {
+                        item.classList.add('leading');
+                    } else {
+                        item.classList.remove('leading');
+                    }
+                }
+            });
+        }
+
         // Remover jogador
         function removePlayer(id) {
             if (!confirm('Tem certeza que deseja remover este jogador?')) {
@@ -501,6 +703,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            updateLeaderBanner();
             saveToStorage();
         }
 
@@ -508,6 +711,7 @@
         function renderPlayers() {
             if (players.length === 0) {
                 playerListEl.innerHTML = `<div class="empty-message">Nenhum participante ainda. Adicione alguns!</div>`;
+                updateLeaderBanner();
                 return;
             }
 
@@ -561,6 +765,10 @@
                     }
                 });
             });
+
+            // Atualizar destaques após renderizar
+            updatePlayerHighlights();
+            updateLeaderBanner();
         }
 
         // Adiciona pontuação a um jogador e atualiza a UI
@@ -570,6 +778,10 @@
                 player.score += points;
                 const scoreSpan = document.getElementById(`score-${id}`);
                 if (scoreSpan) scoreSpan.textContent = player.score;
+                
+                // Atualizações em tempo real
+                updateLeaderBanner();
+                updatePlayerHighlights();
                 saveToStorage();
             }
         }
@@ -610,7 +822,6 @@
                 historyListEl.innerHTML = `<li class="empty-message">Nenhuma partida registrada.</li>`;
             } else {
                 let html = '';
-                // Mostrar últimas 20 partidas (mais recentes primeiro)
                 const recent = [...matchHistory].reverse().slice(0, 20);
                 recent.forEach(m => {
                     html += `
@@ -662,7 +873,6 @@
                     }
                 });
             } else {
-                // Gráfico vazio
                 chartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -683,14 +893,13 @@
             }
         }
 
-        // Encerrar a partida: identificar o vencedor (maior pontuação)
+        // Encerrar a partida
         function endMatch() {
             if (players.length === 0) {
                 alert('Adicione pelo menos um participante antes de encerrar a partida.');
                 return;
             }
 
-            // Verificar se todos têm pontuação 0
             const allZero = players.every(p => p.score === 0);
             if (allZero) {
                 if (!confirm('Todos os jogadores têm pontuação 0. Deseja encerrar mesmo assim?')) {
@@ -698,7 +907,6 @@
                 }
             }
 
-            // Encontrar maior pontuação
             let maxScore = -Infinity;
             let winners = [];
             players.forEach(p => {
@@ -717,7 +925,6 @@
 
             const winnerNames = winners.join(' e ');
             
-            // Registrar no histórico
             matchHistory.push({
                 winner: winnerNames,
                 date: new Date().toLocaleDateString('pt-BR'),
@@ -725,13 +932,10 @@
                 players: players.length
             });
 
-            // Resetar pontuação dos jogadores
             players.forEach(p => p.score = 0);
 
-            // Salvar no Local Storage
             saveToStorage();
 
-            // Atualizar interface
             renderPlayers();
             updateRankingAndChart();
             updatePlayerCount();
@@ -760,6 +964,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            updateLeaderBanner();
             saveToStorage();
         }
 
@@ -774,6 +979,7 @@
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
+            updateLeaderBanner();
             saveToStorage();
         }
 
@@ -791,21 +997,24 @@
 
         // ----- INICIALIZAÇÃO -----
         function initializeApp() {
-            // Tentar carregar dados do Local Storage
             const hasData = loadFromStorage();
             
-            if (!hasData || players.length === 0) {
-                // Se não houver dados, iniciar vazio
+            if (!hasData) {
                 players = [];
                 matchHistory = [];
                 nextId = 1;
                 gameName = 'Minha Partida';
+                titleIndex = 0;
             }
+            
+            // Atualizar título da página
+            updatePageTitle();
             
             renderPlayers();
             updatePlayerCount();
             updateRankingAndChart();
             updateGameNameDisplay();
+            updateLeaderBanner();
             
             if (hasData && (players.length > 0 || matchHistory.length > 0)) {
                 storageStatusEl.textContent = '✅ Dados carregados com sucesso!';
@@ -814,6 +1023,8 @@
         }
 
         // ----- Eventos -----
+        pageTitleEl.addEventListener('click', rotateTitle);
+
         addPlayerBtn.addEventListener('click', addPlayer);
         playerNameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addPlayer();
@@ -829,7 +1040,7 @@
         // ----- Iniciar app -----
         initializeApp();
 
-        // Salvar automaticamente a cada 30 segundos (por segurança)
+        // Salvar automaticamente a cada 30 segundos
         setInterval(saveToStorage, 30000);
     })();
 </script>
